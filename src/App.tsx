@@ -15,7 +15,8 @@ import {
   UserPlus,
   LogOut,
   Menu,
-  X
+  X,
+  Archive
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -31,6 +32,7 @@ import EmployeeForm from './views/EmployeeForm';
 import ApprovalSystem from './views/ApprovalSystem';
 import Reports from './views/Reports';
 import EmployeeDetail from './views/EmployeeDetail';
+import EArsip from './views/EArsip';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -120,6 +122,7 @@ export default function App() {
             <NavItem to="/add-employee" icon={<UserPlus size={20} />} label="Input Data" active={sidebarOpen} />
             <NavItem to="/approvals" icon={<CheckCircle size={20} />} label="Persetujuan" active={sidebarOpen} />
             <NavItem to="/reports" icon={<FileText size={20} />} label="Statistik" active={sidebarOpen} />
+            <NavItem to="/e-arsip" icon={<Archive size={20} />} label="E-Arsip" active={sidebarOpen} />
           </nav>
 
           <div className="mt-auto space-y-4">
@@ -169,6 +172,7 @@ export default function App() {
                 <Route path="/edit-employee/:id" element={<EmployeeForm />} />
                 <Route path="/approvals" element={<ApprovalSystem />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/e-arsip" element={<EArsip />} />
               </Routes>
             </div>
           </div>
