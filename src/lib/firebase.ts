@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -8,35 +8,16 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Handle redirect result on page load
-getRedirectResult(auth).catch((error) => {
-  console.error('Redirect login error:', error);
-});
-
 export const loginWithGoogle = async () => {
   try {
-    // Try popup first, fall back to redirect if popup is blocked
     await signInWithPopup(auth, googleProvider);
   } catch (error: any) {
-    console.error('Popup login failed, trying redirect:', error);
-    // If popup blocked or failed, use redirect method instead
-    if (
-      error?.code === 'auth/popup-blocked' ||
-      error?.code === 'auth/popup-closed-by-user' ||
-      error?.code === 'auth/cancelled-popup-request' ||
-      error?.code === 'auth/internal-error' ||
-      error?.code === 'auth/unauthorized-domain'
-    ) {
-      try {
-        await signInWithRedirect(auth, googleProvider);
-      } catch (redirectError) {
-        console.error('Redirect login also failed:', redirectError);
-        alert('Login gagal. Pastikan domain sudah diotorisasi di Firebase Console.');
-      }
-    } else {
-      console.error('Login error:', error);
-      alert(`Login gagal: ${error?.message || 'Unknown error'}`);
+    console.error('Login failed:', error);
+    if (error?.code === 'auth/popup-closed-by-user') {
+      // User closed the popup, no need to show error
+      return;
     }
+    alert(`Login gagal: ${error?.message || 'Unknown error'}`);
   }
 };
 
