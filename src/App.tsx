@@ -4,15 +4,9 @@ import {
   Routes, 
   Route, 
   Link, 
-  useLocation,
-  useNavigate
+  useLocation
 } from 'react-router-dom';
 import { 
-  Users, 
-  LayoutDashboard, 
-  FileText, 
-  CheckCircle, 
-  UserPlus,
   LogOut,
   Menu,
   X,
@@ -21,17 +15,10 @@ import {
 import { motion } from 'motion/react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, loginWithGoogle, logout } from './lib/firebase';
-// unused imports removed
 import { cn } from './lib/utils';
 import { format } from 'date-fns';
 
 // Views
-import Dashboard from './views/Dashboard';
-import EmployeeList from './views/EmployeeList';
-import EmployeeForm from './views/EmployeeForm';
-import ApprovalSystem from './views/ApprovalSystem';
-import Reports from './views/Reports';
-import EmployeeDetail from './views/EmployeeDetail';
 import EArsip from './views/EArsip';
 
 export default function App() {
@@ -58,7 +45,7 @@ export default function App() {
           />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 bg-indigo-50 rounded-full flex items-center justify-center">
-               <Users size={16} className="text-indigo-600" />
+               <Archive size={16} className="text-indigo-600" />
             </div>
           </div>
         </div>
@@ -76,10 +63,10 @@ export default function App() {
           className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-200 text-center relative z-10 glow-indigo"
         >
           <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-indigo-600/20">
-            <Users size={40} className="text-white" />
+            <Archive size={40} className="text-white" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight mb-3 text-slate-900">Rutan Pasangkayu</h1>
-          <p className="text-slate-500 mb-10 font-medium tracking-wide">Sistem Informasi Manajemen Pegawai & E-Arsip Keuangan</p>
+          <p className="text-slate-500 mb-10 font-medium tracking-wide">E-Arsip Keuangan Digital</p>
           <button 
             onClick={loginWithGoogle}
             className="w-full py-4.5 bg-indigo-600 text-white rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-95"
@@ -104,25 +91,20 @@ export default function App() {
             {sidebarOpen && (
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                  <Users size={22} className="text-white" />
+                  <Archive size={22} className="text-white" />
                 </div>
                 <span className="font-extrabold text-xl tracking-tight uppercase text-slate-900">RUTAN</span>
               </div>
             )}
             {!sidebarOpen && (
               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 mx-auto">
-                <Users size={20} className="text-white" />
+                <Archive size={20} className="text-white" />
               </div>
             )}
           </div>
 
           <nav className="flex-1 space-y-1">
-            <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" active={sidebarOpen} />
-            <NavItem to="/employees" icon={<Users size={20} />} label="Daftar Pegawai" active={sidebarOpen} />
-            <NavItem to="/add-employee" icon={<UserPlus size={20} />} label="Input Data" active={sidebarOpen} />
-            <NavItem to="/approvals" icon={<CheckCircle size={20} />} label="Persetujuan" active={sidebarOpen} />
-            <NavItem to="/reports" icon={<FileText size={20} />} label="Statistik" active={sidebarOpen} />
-            <NavItem to="/e-arsip" icon={<Archive size={20} />} label="E-Arsip" active={sidebarOpen} />
+            <NavItem to="/" icon={<Archive size={20} />} label="E-Arsip" active={sidebarOpen} />
           </nav>
 
           <div className="mt-auto space-y-4">
@@ -157,22 +139,13 @@ export default function App() {
              <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
                <span>{format(new Date(), 'EEEE, dd MMMM yyyy')}</span>
              </div>
-             <div className="flex items-center gap-4">
-               {/* Notification icon removed */}
-             </div>
           </header>
 
           <div className="flex-1 overflow-y-auto px-2">
             <div className="pb-8">
               <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/employees" element={<EmployeeList />} />
-                <Route path="/employees/:id" element={<EmployeeDetail />} />
-                <Route path="/add-employee" element={<EmployeeForm />} />
-                <Route path="/edit-employee/:id" element={<EmployeeForm />} />
-                <Route path="/approvals" element={<ApprovalSystem />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/e-arsip" element={<EArsip />} />
+                <Route path="/" element={<EArsip />} />
+                <Route path="*" element={<EArsip />} />
               </Routes>
             </div>
           </div>
@@ -201,4 +174,3 @@ function NavItem({ to, icon, label, active }: { to: string, icon: React.ReactNod
     </Link>
   );
 }
-
