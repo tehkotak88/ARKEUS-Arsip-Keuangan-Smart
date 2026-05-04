@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Personal and employment data of a staff member",
+      "type": "object",
+      "properties": {
+        "nip": { "type": "string", "description": "Nomor Induk Pegawai" },
+        "name": { "type": "string", "description": "Full name of the employee" },
+        "currentRank": { "type": "string", "description": "Current civil service rank (Golongan)" },
+        "currentSalary": { "type": "number", "description": "Current basic salary" },
+        "lastPangkatDate": { "type": "string", "format": "date", "description": "Date of last promotion" },
+        "nextPangkatDate": { "type": "string", "format": "date", "description": "Predicted date for next promotion" },
+        "lastKgbDate": { "type": "string", "format": "date", "description": "Date of last KGB" },
+        "nextKgbDate": { "type": "string", "format": "date", "description": "Predicted date for next KGB" },
+        "status": { "type": "string", "enum": ["active", "retired", "inactive"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nip", "name", "currentRank", "lastPangkatDate", "lastKgbDate"]
+    },
+    "History": {
+      "title": "History",
+      "description": "Record of past promotions or salary increases",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "type": { "type": "string", "enum": ["pangkat", "kgb"] },
+        "date": { "type": "string", "format": "date" },
+        "value": { "type": "string", "description": "Rank name or Salary amount" },
+        "note": { "type": "string" }
+      },
+      "required": ["employeeId", "type", "date", "value"]
+    },
+    "ApprovalRequest": {
+      "title": "ApprovalRequest",
+      "description": "Request for promotion or KGB approval",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "type": { "type": "string", "enum": ["pangkat", "kgb"] },
+        "newValue": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "requestDate": { "type": "string", "format": "date-time" },
+        "processedBy": { "type": "string" },
+        "processedDate": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string" }
+      },
+      "required": ["employeeId", "type", "newValue", "status", "requestDate"]
+    }
+  },
+  "firestore": {
+    "employees": {
+      "schema": "Employee",
+      "description": "Collection of employee profiles"
+    },
+    "history": {
+      "schema": "History",
+      "description": "Historical records for employees"
+    },
+    "approvals": {
+      "schema": "ApprovalRequest",
+      "description": "Requests awaiting administrative approval"
+    }
+  }
+}

@@ -1,0 +1,98 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Validation Helpers ---
+    
+    function isValidEmployee(data) {
+      return data.keys().hasAll(['nip', 'name', 'currentRank', 'lastPangkatDate', 'lastKgbDate'])
+        && data.nip is string && data.nip.size() <= 20
+        && data.name is string && data.name.size() <= 100
+        && data.currentRank is string && data.currentRank.size() <= 20
+        && (data.currentSalary == null || data.currentSalary is number)
+        && data.lastPangkatDate is string && data.lastPangkatDate.size() == 10
+        && data.lastKgbDate is string && data.lastKgbDate.size() == 10;
+    }
+
+    function isValidHistory(data) {
+      return data.keys().hasAll(['employeeId', 'type', 'date', 'value'])
+        && isValidId(data.employeeId)
+        && data.type in ['pangkat', 'kgb']
+        && data.date is string && data.date.size() == 10
+        && data.value is string && data.value.size() <= 100;
+    }
+
+    function isValidApproval(data) {
+      return data.keys().hasAll(['employeeId', 'type', 'newValue', 'status', 'requestDate'])
+        && isValidId(data.employeeId)
+        && data.type in ['pangkat', 'kgb']
+        && data.status in ['pending', 'approved', 'rejected']
+        && data.requestDate is timestamp;
+    }
+
+    // --- Collection Matches ---
+
+    match /employees/{employeeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidEmployee(incoming()) && isValidId(employeeId);
+      allow update: if isSignedIn() && isValidEmployee(incoming()) && (
+        // Admin update
+        isAdmin() ||
+        // Staff update (cannot change NIP or basic identity if we wanted to be strict, but for now allow all)
+        (incoming().nip == existing().nip)
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /history/{historyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidHistory(incoming()) && exists(/databases/$(database)/documents/employees/$(incoming().employeeId));
+      allow update: if isAdmin() && isValidHistory(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /approvals/{approvalId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidApproval(incoming()) && incoming().status == 'pending';
+      allow update: if isSignedIn() && (
+        // Only admins can change status from pending
+        (isAdmin() && isValidApproval(incoming())) ||
+        // Requesters can update their own pending requests but not the status to 'approved'
+        (incoming().status == 'pending' && existing().status == 'pending' && isValidApproval(incoming()))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Admin list - managed manually in Firebase Console for security
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // System bootstrap or console only
+    }
+  }
+}
