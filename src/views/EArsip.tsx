@@ -307,7 +307,7 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
         </>
       )}
 
-      <AnimatePresence>{showForm && <AddArsipModal category={category} onClose={() => setShowForm(false)} onUploadProgress={updateUploadProgress} />}</AnimatePresence>
+      <AnimatePresence>{showForm && <AddArsipModal category={category} onClose={() => setShowForm(false)} />}</AnimatePresence>
       <AnimatePresence>{showDetail && <DetailModal document={showDetail} onClose={() => setShowDetail(null)} />}</AnimatePresence>
     </div>
   );
@@ -340,7 +340,7 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
     if (submitting) return;
     
     if (!externalLink) {
-      alert('Silakan masukkan link dokumen (contoh: Link Google Drive).');
+      alert('Silakan masukkan link dokumen.');
       return;
     }
 
@@ -354,7 +354,6 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
         status: 'ready',
         createdAt: serverTimestamp()
       });
-
       onClose();
     } catch (error: any) {
       console.error('Error saving document:', error);
@@ -415,9 +414,16 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
             <textarea value={formData.keterangan} onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })} rows={2}
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-medium placeholder:text-slate-400 resize-none" placeholder="Keterangan..." />
           </InputField>
-              <div className="flex items-center gap-2 uppercase tracking-widest text-[11px]">
-                {submitting ? 'Menyimpan...' : <><Upload size={16} /> Simpan Sekarang</>}
-              </div>
+
+          <InputField label="Link Dokumen (Google Drive)" icon={<Paperclip size={14} />} required>
+            <input type="url" required value={externalLink} onChange={(e) => setExternalLink(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-bold placeholder:text-slate-400 text-xs" placeholder="https://drive.google.com/..." />
+          </InputField>
+
+          <div className="flex gap-4 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 py-4 bg-white hover:bg-slate-50 text-slate-500 rounded-2xl font-bold border border-slate-200 uppercase tracking-widest text-[10px] transition-colors">Batal</button>
+            <button type="submit" disabled={submitting} className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-70 transition-all uppercase tracking-widest text-[10px]">
+              {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus size={16} /> Simpan Sekarang</>}
             </button>
           </div>
         </form>
