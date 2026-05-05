@@ -1,4 +1,4 @@
-# Security Specification for SimpegPakar
+# Security Specification for arkeusarsipkeuangansmart
 
 ## 1. Data Invariants
 - An employee record cannot be created without a valid NIP and Join Date.

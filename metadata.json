@@ -1,6 +1,6 @@
 {
-  "name": "SimpegPakar",
-  "description": "Sistem Informasi Manajemen Pegawai (SIMPEG) - Aplikasi pengelolaan data pegawai, pengingat kenaikan pangkat, KGB, riwayat karir, dan sistem persetujuan otomatis.",
+  "name": "arkeusarsipkeuangansmart",
+  "description": "arkeusarsipkeuangansmart - Aplikasi pengelolaan data pegawai, pengingat kenaikan pangkat, KGB, riwayat karir, dan sistem persetujuan otomatis.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
