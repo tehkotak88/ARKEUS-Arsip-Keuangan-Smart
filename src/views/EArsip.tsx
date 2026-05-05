@@ -342,6 +342,10 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
           const url = await getDownloadURL(uploadTask.snapshot.ref);
           setUploadedUrl(url);
           setIsUploading(false);
+          
+          // Jika modal ini masih terbuka dan user sudah klik "Simpan",
+          // atau kita ingin otomatis simpan jika user sudah klik "Simpan" sebelumnya.
+          // Tapi pendekatan paling aman adalah biarkan handleSubmit yang menangani jika sudah klik.
         }
       );
     } catch (error) {
@@ -356,52 +360,48 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
 
     setSubmitting(true);
 
-    try {
-      let finalUrl = '';
-      let finalFileName = '';
+    const saveData = async (url: string, fileName: string) => {
+      try {
+        await addDoc(collection(db, 'arsip'), { 
+          ...formData, 
+          fileUrl: url, 
+          fileName: fileName, 
+          createdAt: serverTimestamp() 
+        });
+        console.log('Document saved successfully!');
+      } catch (error) {
+        console.error('Background save failed:', error);
+      }
+    };
 
-      if (uploadMethod === 'file') {
-        if (!pdfFile && !uploadedUrl) {
-          alert('Silakan pilih file PDF terlebih dahulu.');
-          setSubmitting(false);
-          return;
-        }
-
-        // Jika masih proses upload, kita tunggu sebentar
-        if (isUploading) {
-          alert('Sedang mengunggah PDF... Mohon tunggu sebentar.');
-          // Kita bisa mengoptimalkan ini dengan menyimpan uploadTask di ref
-          // Tapi untuk sekarang, kita asumsikan user akan menunggu sampai progress selesai
-          setSubmitting(false);
-          return;
-        }
-        
-        finalUrl = uploadedUrl;
-        finalFileName = pdfFile?.name || 'document.pdf';
-      } else {
-        if (!externalLink) {
-          alert('Silakan masukkan link dokumen.');
-          setSubmitting(false);
-          return;
-        }
-        finalUrl = externalLink;
-        finalFileName = 'External Link';
+    if (uploadMethod === 'file') {
+      if (!pdfFile && !uploadedUrl) {
+        alert('Silakan pilih file PDF.');
+        setSubmitting(false);
+        return;
       }
 
-      await addDoc(collection(db, 'arsip'), { 
-        ...formData, 
-        fileUrl: finalUrl, 
-        fileName: finalFileName, 
-        createdAt: serverTimestamp() 
-      });
+      if (isUploading) {
+        // Trik: Kita jalankan simpan di background. 
+        // Kita panggil upload lagi tapi versi yang langsung save di akhir.
+        const storageRef = ref(storage, `arsip/${Date.now()}_${pdfFile!.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, pdfFile!);
+        
+        uploadTask.on('state_changed', null, null, async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          await saveData(url, pdfFile!.name);
+        });
 
-      onClose();
-    } catch (error) {
-      console.error('Error saving document:', error);
-      alert('Gagal menyimpan data. Silakan coba lagi.');
-    } finally {
-      setSubmitting(false);
+        alert('Sip! Dokumen sedang diunggah. Anda bisa lanjut bekerja, data akan otomatis muncul sebentar lagi.');
+      } else {
+        await saveData(uploadedUrl, pdfFile?.name || 'document.pdf');
+      }
+    } else {
+      await saveData(externalLink, 'External Link');
     }
+
+    onClose();
+    setSubmitting(false);
   };
 
   return (
