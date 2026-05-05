@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BrowserRouter as Router, 
-  Routes, 
-  Route, 
-  Link, 
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
   useLocation
 } from 'react-router-dom';
-import { 
+import {
   LogOut,
   Menu,
   Archive,
   FileText,
   CreditCard,
-  Paperclip
+  Paperclip,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -43,7 +44,7 @@ export default function App() {
             className="w-16 h-16 border-[3px] border-slate-100 border-t-indigo-600 rounded-full" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 bg-indigo-50 rounded-full flex items-center justify-center">
-               <Archive size={16} className="text-indigo-600" />
+              <Archive size={16} className="text-indigo-600" />
             </div>
           </div>
         </div>
@@ -78,16 +79,16 @@ export default function App() {
     <Router>
       <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col md:flex-row md:p-4 md:gap-4 overflow-hidden relative">
         <div className="absolute inset-0 bg-[radial-gradient(at_0%_0%,rgba(99,102,241,0.05)_0px,transparent_50%)] pointer-events-none" />
-        
+
         {/* Mobile Header */}
-        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+        <header className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/40">
               <Archive size={18} className="text-white" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight uppercase text-slate-900">ARKEUS</span>
+            <span className="font-extrabold text-lg tracking-tight uppercase text-white">ARKEUS</span>
           </div>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500">
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 hover:bg-slate-800 rounded-xl text-slate-300">
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </header>
@@ -98,18 +99,19 @@ export default function App() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="md:hidden fixed inset-0 top-[57px] bg-black/30 backdrop-blur-sm z-40" onClick={() => setMobileMenuOpen(false)}>
               <motion.div initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: 'spring', damping: 25 }}
-                className="w-72 h-full bg-white border-r border-slate-200 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-                <nav className="space-y-2 mb-8">
+                className="w-72 h-full bg-slate-900 border-r border-slate-800 p-6 shadow-xl relative overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.1),transparent)] pointer-events-none" />
+                <nav className="space-y-2 mb-8 relative z-10">
                   <MobileNavItem to="/spm" icon={<FileText size={20} />} label="SPM" onClick={() => setMobileMenuOpen(false)} />
                   <MobileNavItem to="/spp" icon={<CreditCard size={20} />} label="SPP" onClick={() => setMobileMenuOpen(false)} />
                   <MobileNavItem to="/data-dukung" icon={<Paperclip size={20} />} label="Data Dukung" onClick={() => setMobileMenuOpen(false)} />
                 </nav>
-                <div className="border-t border-slate-100 pt-6 space-y-4">
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                    <p className="text-sm font-bold truncate text-slate-900">{user.displayName}</p>
+                <div className="border-t border-slate-800 pt-6 space-y-4 relative z-10">
+                  <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-4 border border-slate-700/50">
+                    <p className="text-sm font-bold truncate text-white">{user.displayName}</p>
                     <p className="text-[10px] text-slate-400 truncate mt-1">{user.email}</p>
                   </div>
-                  <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+                  <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
                     <LogOut size={20} /><span className="font-bold text-sm">Sign Out</span>
                   </button>
                 </div>
@@ -119,24 +121,25 @@ export default function App() {
         </AnimatePresence>
 
         {/* Desktop Sidebar */}
-        <aside className="hidden md:flex bg-white border border-slate-200 rounded-[2rem] flex-col w-64 p-6 transition-all duration-500 z-50 shadow-sm">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <aside className="hidden md:flex bg-slate-900 border border-slate-800 rounded-[2rem] flex-col w-64 p-6 transition-all duration-500 z-50 shadow-2xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.15),transparent)] pointer-events-none" />
+          <div className="flex items-center gap-3 mb-10 relative z-10">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/40">
               <Archive size={22} className="text-white" />
             </div>
-            <span className="font-extrabold text-xl tracking-tight uppercase text-slate-900">ARKEUS</span>
+            <span className="font-extrabold text-xl tracking-tight uppercase text-white">ARKEUS</span>
           </div>
-          <nav className="flex-1 space-y-1">
+          <nav className="flex-1 space-y-1 relative z-10">
             <NavItem to="/spm" icon={<FileText size={20} />} label="SPM" />
             <NavItem to="/spp" icon={<CreditCard size={20} />} label="SPP" />
             <NavItem to="/data-dukung" icon={<Paperclip size={20} />} label="Data Dukung" />
           </nav>
-          <div className="mt-auto space-y-4">
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-              <p className="text-sm font-bold truncate text-slate-900">{user.displayName}</p>
+          <div className="mt-auto space-y-4 relative z-10">
+            <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-4 border border-slate-700/50">
+              <p className="text-sm font-bold truncate text-white">{user.displayName}</p>
               <p className="text-[10px] text-slate-400 truncate mt-1">{user.email}</p>
             </div>
-            <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+            <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
               <LogOut size={20} /><span className="font-bold text-sm">Sign Out</span>
             </button>
           </div>
@@ -145,7 +148,7 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 flex flex-col md:gap-4 min-w-0">
           {/* Desktop date header */}
-          <header className="hidden md:flex h-16 bg-white border border-slate-200 rounded-3xl items-center justify-between px-8 shrink-0 shadow-sm">
+          <header className="hidden md:flex h-16 glass-panel rounded-3xl items-center justify-between px-8 shrink-0 shadow-sm relative z-20">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
               {format(new Date(), 'EEEE, dd MMMM yyyy')}
             </div>
@@ -172,8 +175,8 @@ function NavItem({ to, icon, label }: { to: string, icon: React.ReactNode, label
   const isActive = location.pathname === to;
   return (
     <Link to={to} className={cn("flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group",
-      isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:bg-slate-50")}>
-      <span className={cn(isActive ? "text-white" : "text-slate-400 group-hover:text-indigo-600")}>{icon}</span>
+      isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/40" : "text-slate-400 hover:bg-slate-800 hover:text-slate-200")}>
+      <span className={cn(isActive ? "text-white" : "text-slate-500 group-hover:text-indigo-400")}>{icon}</span>
       <span className="font-bold text-sm tracking-wide">{label}</span>
     </Link>
   );
@@ -184,8 +187,8 @@ function MobileNavItem({ to, icon, label, onClick }: { to: string, icon: React.R
   const isActive = location.pathname === to;
   return (
     <Link to={to} onClick={onClick} className={cn("flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all",
-      isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:bg-slate-50 active:bg-slate-100")}>
-      <span className={cn(isActive ? "text-white" : "text-slate-400")}>{icon}</span>
+      isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/40" : "text-slate-400 hover:bg-slate-800")}>
+      <span className={cn(isActive ? "text-white" : "text-slate-500")}>{icon}</span>
       <span className="font-bold text-sm">{label}</span>
     </Link>
   );

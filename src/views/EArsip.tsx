@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Archive, Plus, Search, Zap, Receipt, Calendar, DollarSign, FileText, Trash2, Eye, X, Upload, Clock, Droplets, Phone, Fuel, UtensilsCrossed, BarChart3, Paperclip, Users, Briefcase, FileStack } from 'lucide-react';
+import { Archive, Plus, Search, Zap, Receipt, Calendar, DollarSign, FileText, Trash2, Eye, X, Upload, Clock, Droplets, Phone, Fuel, UtensilsCrossed, BarChart3, Paperclip, Users, Briefcase, FileStack, CreditCard } from 'lucide-react';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
