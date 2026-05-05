@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Archive, Plus, Search, Zap, Receipt, Calendar, DollarSign, FileText, Trash2, Eye, X, Upload, Clock, Droplets, Phone, Fuel, UtensilsCrossed, BarChart3, Paperclip, Users, Briefcase, FileStack, CreditCard } from 'lucide-react';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -310,25 +310,46 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
   const [formData, setFormData] = useState({ type: defaultType as DocType, title: '', nomorSurat: '', tanggal: format(new Date(), 'yyyy-MM-dd'), nominal: 0, keterangan: '', periode: '' });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setUploadProgress(0);
+
     try {
       let fileUrl = '';
       let fileName = '';
+
       if (pdfFile) {
         const storageRef = ref(storage, `arsip/${Date.now()}_${pdfFile.name}`);
-        await uploadBytes(storageRef, pdfFile);
-        fileUrl = await getDownloadURL(storageRef);
+        const uploadTask = uploadBytesResumable(storageRef, pdfFile);
+
+        fileUrl = await new Promise((resolve, reject) => {
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+            }, 
+            (error) => reject(error), 
+            async () => {
+              const url = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(url);
+            }
+          );
+        });
         fileName = pdfFile.name;
       }
+
       await addDoc(collection(db, 'arsip'), { ...formData, fileUrl, fileName, createdAt: serverTimestamp() });
       onClose();
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       alert(`Gagal menyimpan: ${errMsg}`);
-    } finally { setSubmitting(false); }
+    } finally { 
+      setSubmitting(false); 
+      setUploadProgress(null);
+    }
   };
 
   return (
@@ -396,8 +417,26 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
           </div>
           <div className="flex gap-4 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-white hover:bg-slate-50 text-slate-500 rounded-2xl font-bold border border-slate-200 uppercase tracking-widest text-[11px]">Batal</button>
-            <button type="submit" disabled={submitting} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-50 uppercase tracking-widest text-[11px]">
-              {submitting ? 'Menyimpan...' : <><Upload size={16} /> Simpan Arsip</>}
+            <button type="submit" disabled={submitting} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-70 transition-all relative overflow-hidden group">
+              {submitting ? (
+                <div className="flex flex-col items-center gap-1 w-full">
+                  <span className="uppercase tracking-widest text-[10px]">
+                    {uploadProgress !== null && uploadProgress < 100 ? `Mengirim... ${Math.round(uploadProgress)}%` : 'Menyimpan Data...'}
+                  </span>
+                  <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden absolute bottom-0 left-0">
+                    <motion.div 
+                      className="h-full bg-white" 
+                      initial={{ width: 0 }} 
+                      animate={{ width: `${uploadProgress || 0}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 uppercase tracking-widest text-[11px]">
+                  <Upload size={16} /> Simpan Arsip
+                </div>
+              )}
             </button>
           </div>
         </form>
