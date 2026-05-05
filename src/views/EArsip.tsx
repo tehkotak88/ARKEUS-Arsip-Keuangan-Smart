@@ -109,8 +109,8 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-        <StatCard icon={<FileText className="text-indigo-600" size={20} />} label="Total Arsip" value={filtered.length.toString()} color="bg-indigo-50" glow="glow-indigo" />
-        {category !== 'data_dukung' && <StatCard icon={<DollarSign className="text-emerald-600" size={20} />} label="Total Nominal" value={`Rp ${filtered.reduce((sum, d) => sum + (d.nominal || 0), 0).toLocaleString('id-ID')}`} color="bg-emerald-50" />}
+        <StatCard icon={<FileText className="text-indigo-600" size={20} />} label="Total Arsip" value={documents.filter(d => category === 'all' || (category === 'spm' && d.type.startsWith('spm')) || (category === 'spp' && d.type.startsWith('spp')) || (category === 'data_dukung' && d.type === 'data_dukung')).length.toString()} color="bg-indigo-50" glow="glow-indigo" />
+        {category !== 'data_dukung' && <StatCard icon={<DollarSign className="text-emerald-600" size={20} />} label="Total Nominal" value={`Rp ${documents.filter(d => category === 'all' || (category === 'spm' && d.type.startsWith('spm')) || (category === 'spp' && d.type.startsWith('spp'))).reduce((sum, d) => sum + (d.nominal || 0), 0).toLocaleString('id-ID')}`} color="bg-emerald-50" />}
         {(category === 'all' || category === 'spm') && <StatCard icon={<Zap className="text-amber-600" size={20} />} label="Total SPM" value={documents.filter(d => d.type.startsWith('spm')).length.toString()} color="bg-amber-50" />}
         {(category === 'all' || category === 'spp') && <StatCard icon={<CreditCard className="text-emerald-600" size={20} />} label="Total SPP" value={documents.filter(d => d.type.startsWith('spp')).length.toString()} color="bg-emerald-50" />}
         {(category === 'all' || category === 'data_dukung') && <StatCard icon={<Paperclip className="text-violet-600" size={20} />} label="Data Dukung" value={documents.filter(d => d.type === 'data_dukung').length.toString()} color="bg-violet-50" />}
@@ -352,50 +352,56 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Kita akan langsung menutup modal agar user tidak menunggu
+    if (submitting) return;
+
     setSubmitting(true);
 
-    const saveData = async (finalUrl: string, finalFileName: string) => {
-      try {
-        await addDoc(collection(db, 'arsip'), { 
-          ...formData, 
-          fileUrl: finalUrl, 
-          fileName: finalFileName, 
-          createdAt: serverTimestamp() 
-        });
-        console.log('Background save success!');
-      } catch (error) {
-        console.error('Background save failed:', error);
+    try {
+      let finalUrl = '';
+      let finalFileName = '';
+
+      if (uploadMethod === 'file') {
+        if (!pdfFile && !uploadedUrl) {
+          alert('Silakan pilih file PDF terlebih dahulu.');
+          setSubmitting(false);
+          return;
+        }
+
+        // Jika masih proses upload, kita tunggu sebentar
+        if (isUploading) {
+          alert('Sedang mengunggah PDF... Mohon tunggu sebentar.');
+          // Kita bisa mengoptimalkan ini dengan menyimpan uploadTask di ref
+          // Tapi untuk sekarang, kita asumsikan user akan menunggu sampai progress selesai
+          setSubmitting(false);
+          return;
+        }
+        
+        finalUrl = uploadedUrl;
+        finalFileName = pdfFile?.name || 'document.pdf';
+      } else {
+        if (!externalLink) {
+          alert('Silakan masukkan link dokumen.');
+          setSubmitting(false);
+          return;
+        }
+        finalUrl = externalLink;
+        finalFileName = 'External Link';
       }
-    };
 
-    if (uploadMethod === 'file' && isUploading) {
-      // Jika masih upload, beri tahu user bahwa ini akan tersimpan otomatis
-      alert('Sip! Data akan tersimpan otomatis di latar belakang segera setelah upload PDF selesai. Anda bisa lanjut bekerja sekarang.');
-      
-      // Tunggu upload selesai di background secara silent
-      const checkUpload = setInterval(async () => {
-        // Kita gunakan variabel isUploading yang akan diupdate oleh handleFileChange
-        // Tapi state mungkin tidak update di dalam interval closure jika tidak hati-hati
-        // Namun karena ini functional component, kita bisa pakai trik lain atau biarkan handleFileChange yang panggil saveData
-      }, 1000);
-      
-      // Cara terbaik: Simpan referensi saveData agar bisa dipanggil saat upload selesai
-      // Tapi untuk kemudahan sekarang, kita gunakan interval pengecekan state yang stabil
-      const storageRef = ref(storage, `arsip/${Date.now()}_${pdfFile?.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, pdfFile!);
-      
-      uploadTask.on('state_changed', null, null, async () => {
-         const url = await getDownloadURL(uploadTask.snapshot.ref);
-         await saveData(url, pdfFile?.name || '');
+      await addDoc(collection(db, 'arsip'), { 
+        ...formData, 
+        fileUrl: finalUrl, 
+        fileName: finalFileName, 
+        createdAt: serverTimestamp() 
       });
-    } else {
-      await saveData(uploadMethod === 'link' ? externalLink : uploadedUrl, uploadMethod === 'link' ? 'External Link' : (pdfFile?.name || ''));
-    }
 
-    onClose();
-    setSubmitting(false);
+      onClose();
+    } catch (error) {
+      console.error('Error saving document:', error);
+      alert('Gagal menyimpan data. Silakan coba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
