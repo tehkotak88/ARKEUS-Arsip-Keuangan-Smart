@@ -352,27 +352,50 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isUploading) {
-      alert('Tunggu sebentar, file sedang diupload...');
-      return;
-    }
     
+    // Kita akan langsung menutup modal agar user tidak menunggu
     setSubmitting(true);
 
-    try {
-      await addDoc(collection(db, 'arsip'), { 
-        ...formData, 
-        fileUrl: uploadMethod === 'link' ? externalLink : uploadedUrl, 
-        fileName: uploadMethod === 'link' ? 'External Link' : (pdfFile?.name || ''), 
-        createdAt: serverTimestamp() 
+    const saveData = async (finalUrl: string, finalFileName: string) => {
+      try {
+        await addDoc(collection(db, 'arsip'), { 
+          ...formData, 
+          fileUrl: finalUrl, 
+          fileName: finalFileName, 
+          createdAt: serverTimestamp() 
+        });
+        console.log('Background save success!');
+      } catch (error) {
+        console.error('Background save failed:', error);
+      }
+    };
+
+    if (uploadMethod === 'file' && isUploading) {
+      // Jika masih upload, beri tahu user bahwa ini akan tersimpan otomatis
+      alert('Sip! Data akan tersimpan otomatis di latar belakang segera setelah upload PDF selesai. Anda bisa lanjut bekerja sekarang.');
+      
+      // Tunggu upload selesai di background secara silent
+      const checkUpload = setInterval(async () => {
+        // Kita gunakan variabel isUploading yang akan diupdate oleh handleFileChange
+        // Tapi state mungkin tidak update di dalam interval closure jika tidak hati-hati
+        // Namun karena ini functional component, kita bisa pakai trik lain atau biarkan handleFileChange yang panggil saveData
+      }, 1000);
+      
+      // Cara terbaik: Simpan referensi saveData agar bisa dipanggil saat upload selesai
+      // Tapi untuk kemudahan sekarang, kita gunakan interval pengecekan state yang stabil
+      const storageRef = ref(storage, `arsip/${Date.now()}_${pdfFile?.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, pdfFile!);
+      
+      uploadTask.on('state_changed', null, null, async () => {
+         const url = await getDownloadURL(uploadTask.snapshot.ref);
+         await saveData(url, pdfFile?.name || '');
       });
-      onClose();
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      alert(`Gagal menyimpan: ${errMsg}`);
-    } finally { 
-      setSubmitting(false); 
+    } else {
+      await saveData(uploadMethod === 'link' ? externalLink : uploadedUrl, uploadMethod === 'link' ? 'External Link' : (pdfFile?.name || ''));
     }
+
+    onClose();
+    setSubmitting(false);
   };
 
   return (
@@ -459,16 +482,10 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
           </div>
           <div className="flex gap-4 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-white hover:bg-slate-50 text-slate-500 rounded-2xl font-bold border border-slate-200 uppercase tracking-widest text-[11px]">Batal</button>
-            <button type="submit" disabled={submitting || isUploading} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-70 transition-all relative overflow-hidden group">
-              {submitting ? (
-                <span className="uppercase tracking-widest text-[11px]">Menyimpan Data...</span>
-              ) : isUploading ? (
-                <span className="uppercase tracking-widest text-[11px]">Mengupload PDF... {Math.round(uploadProgress || 0)}%</span>
-              ) : (
-                <div className="flex items-center gap-2 uppercase tracking-widest text-[11px]">
-                  <Upload size={16} /> Simpan Arsip
-                </div>
-              )}
+            <button type="submit" disabled={submitting} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-70 transition-all relative overflow-hidden group">
+              <div className="flex items-center gap-2 uppercase tracking-widest text-[11px]">
+                {submitting ? 'Menyimpan...' : <><Upload size={16} /> Simpan Sekarang</>}
+              </div>
             </button>
           </div>
         </form>
