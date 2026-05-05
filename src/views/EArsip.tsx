@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Archive, Plus, Search, Zap, Receipt, Calendar, DollarSign, FileText, Trash2, Eye, X, Upload, Clock, Droplets, Phone, Fuel, UtensilsCrossed, BarChart3, Paperclip } from 'lucide-react';
+import { Archive, Plus, Search, Zap, Receipt, Calendar, DollarSign, FileText, Trash2, Eye, X, Upload, Clock, Droplets, Phone, Fuel, UtensilsCrossed, BarChart3, Paperclip, Users, Briefcase, FileStack } from 'lucide-react';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
@@ -8,7 +8,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-type DocType = 'spm_listrik' | 'spm_air' | 'spm_telepon' | 'spm_bbm' | 'spm_makan' | 'kwitansi';
+type DocType = 
+  | 'spm_tunkin' | 'spm_lainnya' | 'spm_gaji' | 'spm_makan' | 'spm_kontraktual' | 'spm_listrik'
+  | 'spp_tunkin' | 'spp_lainnya' | 'spp_gaji' | 'spp_makan' | 'spp_kontraktual' | 'spp_listrik'
+  | 'data_dukung';
 
 interface ArsipDocument {
   id: string;
@@ -25,12 +28,21 @@ interface ArsipDocument {
 }
 
 const DOC_TYPE_CONFIG: Record<DocType, { label: string; icon: React.ReactNode; color: string; bgColor: string; borderColor: string }> = {
-  spm_listrik: { label: 'SPM Listrik', icon: <Zap size={18} />, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-100' },
-  spm_air: { label: 'SPM Air', icon: <Droplets size={18} />, color: 'text-sky-600', bgColor: 'bg-sky-50', borderColor: 'border-sky-100' },
-  spm_telepon: { label: 'SPM Telepon', icon: <Phone size={18} />, color: 'text-violet-600', bgColor: 'bg-violet-50', borderColor: 'border-violet-100' },
-  spm_bbm: { label: 'SPM BBM', icon: <Fuel size={18} />, color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-100' },
-  spm_makan: { label: 'SPM Makan/Minum', icon: <UtensilsCrossed size={18} />, color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-100' },
-  kwitansi: { label: 'Kwitansi', icon: <Receipt size={18} />, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-100' },
+  spm_tunkin: { label: 'SPM Tunjangan Kinerja', icon: <DollarSign size={18} />, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-100' },
+  spm_lainnya: { label: 'SPM Lainnya', icon: <FileText size={18} />, color: 'text-slate-600', bgColor: 'bg-slate-50', borderColor: 'border-slate-100' },
+  spm_gaji: { label: 'SPM Gaji Induk', icon: <Users size={18} />, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-100' },
+  spm_makan: { label: 'SPM Uang Makan', icon: <UtensilsCrossed size={18} />, color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-100' },
+  spm_kontraktual: { label: 'SPM Kontraktual Lainnya', icon: <Briefcase size={18} />, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-100' },
+  spm_listrik: { label: 'SPM Listrik', icon: <Zap size={18} />, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-100' },
+  
+  spp_tunkin: { label: 'SPP Tunjangan Kinerja', icon: <DollarSign size={18} />, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-100' },
+  spp_lainnya: { label: 'SPP Lainnya', icon: <FileText size={18} />, color: 'text-slate-600', bgColor: 'bg-slate-50', borderColor: 'border-slate-100' },
+  spp_gaji: { label: 'SPP Gaji Induk', icon: <Users size={18} />, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-100' },
+  spp_makan: { label: 'SPP Uang Makan', icon: <UtensilsCrossed size={18} />, color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-100' },
+  spp_kontraktual: { label: 'SPP Kontraktual Lainnya', icon: <Briefcase size={18} />, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-100' },
+  spp_listrik: { label: 'SPP Listrik', icon: <Zap size={18} />, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-100' },
+
+  data_dukung: { label: 'Data Dukung', icon: <Paperclip size={18} />, color: 'text-violet-600', bgColor: 'bg-violet-50', borderColor: 'border-violet-100' },
 };
 
 const PIE_COLORS = ['#f59e0b', '#0ea5e9', '#8b5cf6', '#f97316', '#f43f5e', '#10b981'];
@@ -74,8 +86,8 @@ export default function EArsip() {
     <div className="space-y-6 pt-4">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">E-Arsip Keuangan</h1>
-          <p className="text-slate-500 mt-1 font-medium text-sm md:text-base">Kelola arsip SPM & Kwitansi secara digital.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">ARKEUS : Arsip Keuangan Smart</h1>
+          <p className="text-slate-500 mt-1 font-medium text-sm md:text-base">Sistem Manajemen Arsip Keuangan Digital Terintegrasi.</p>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3.5 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/30 active:scale-95 w-full md:w-auto md:self-start text-sm">
           <Plus size={18} /> Tambah Arsip
@@ -83,11 +95,12 @@ export default function EArsip() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
         <StatCard icon={<FileText className="text-indigo-600" size={20} />} label="Total Arsip" value={documents.length.toString()} color="bg-indigo-50" glow="glow-indigo" />
         <StatCard icon={<DollarSign className="text-emerald-600" size={20} />} label="Total Nominal" value={`Rp ${totalNominal.toLocaleString('id-ID')}`} color="bg-emerald-50" />
         <StatCard icon={<Zap className="text-amber-600" size={20} />} label="Total SPM" value={documents.filter(d => d.type.startsWith('spm')).length.toString()} color="bg-amber-50" />
-        <StatCard icon={<Receipt className="text-emerald-600" size={20} />} label="Total Kwitansi" value={documents.filter(d => d.type === 'kwitansi').length.toString()} color="bg-emerald-50" />
+        <StatCard icon={<Receipt className="text-emerald-600" size={20} />} label="Total SPP" value={documents.filter(d => d.type.startsWith('spp')).length.toString()} color="bg-emerald-50" />
+        <StatCard icon={<FileStack className="text-violet-600" size={20} />} label="Data Dukung" value={documents.filter(d => d.type === 'data_dukung').length.toString()} color="bg-violet-50" />
       </div>
 
       {/* Tabs */}
@@ -178,7 +191,7 @@ export default function EArsip() {
                     <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{d.nomorSurat}</p>
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
                       <span className="text-[11px] font-bold text-slate-400 font-mono">{d.tanggal}</span>
-                      <span className="text-sm font-bold text-emerald-600">Rp {d.nominal.toLocaleString('id-ID')}</span>
+                      {d.type !== 'data_dukung' && <span className="text-sm font-bold text-emerald-600">Rp {d.nominal.toLocaleString('id-ID')}</span>}
                     </div>
                   </motion.div>
                 );
@@ -218,7 +231,7 @@ export default function EArsip() {
                             <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{d.nomorSurat}</p>
                           </td>
                           <td className="px-6 py-4 text-xs font-bold text-slate-500 font-mono">{d.tanggal}</td>
-                          <td className="px-6 py-4 text-sm font-bold text-emerald-600 text-right">Rp {d.nominal.toLocaleString('id-ID')}</td>
+                          <td className="px-6 py-4 text-sm font-bold text-emerald-600 text-right">{d.type !== 'data_dukung' ? `Rp ${d.nominal.toLocaleString('id-ID')}` : '-'}</td>
                           <td className="px-6 py-4">{d.fileUrl ? <a href={d.fileUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 hover:bg-indigo-100"><Paperclip size={12} /> PDF</a> : <span className="text-slate-300 text-xs">-</span>}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-2">
@@ -266,7 +279,7 @@ function StatCard({ icon, label, value, color, glow }: { icon: React.ReactNode; 
 
 /* ======================== ADD FORM MODAL ======================== */
 function AddArsipModal({ onClose }: { onClose: () => void }) {
-  const [formData, setFormData] = useState({ type: 'spm_listrik' as DocType, title: '', nomorSurat: '', tanggal: format(new Date(), 'yyyy-MM-dd'), nominal: 0, keterangan: '', periode: '' });
+  const [formData, setFormData] = useState({ type: 'spm_tunkin' as DocType, title: '', nomorSurat: '', tanggal: format(new Date(), 'yyyy-MM-dd'), nominal: 0, keterangan: '', periode: '' });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -302,9 +315,9 @@ function AddArsipModal({ onClose }: { onClose: () => void }) {
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Tipe Dokumen *</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {(Object.entries(DOC_TYPE_CONFIG) as [DocType, typeof DOC_TYPE_CONFIG['spm_listrik']][]).map(([key, config]) => (
+              {(Object.entries(DOC_TYPE_CONFIG) as [DocType, typeof DOC_TYPE_CONFIG['spm_tunkin']][]).map(([key, config]) => (
                 <button key={key} type="button" onClick={() => setFormData({ ...formData, type: key })}
-                  className={cn("flex items-center gap-2 p-3 rounded-xl border-2 transition-all font-bold text-xs",
+                  className={cn("flex items-center gap-2 p-3 rounded-xl border-2 transition-all font-bold text-[10px]",
                     formData.type === key ? "border-indigo-500 bg-indigo-50 text-indigo-600" : "border-slate-200 text-slate-500 hover:border-slate-300")}>
                   {config.icon} {config.label}
                 </button>
@@ -329,10 +342,12 @@ function AddArsipModal({ onClose }: { onClose: () => void }) {
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-bold placeholder:text-slate-400" placeholder="Januari 2026" />
             </InputField>
           </div>
-          <InputField label="Nominal (Rp)" icon={<DollarSign size={14} />} required>
-            <input type="number" required value={formData.nominal} onChange={(e) => setFormData({ ...formData, nominal: parseFloat(e.target.value) || 0 })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-bold text-emerald-600" />
-          </InputField>
+          {formData.type !== 'data_dukung' && (
+            <InputField label="Nominal (Rp)" icon={<DollarSign size={14} />} required>
+              <input type="number" required value={formData.nominal} onChange={(e) => setFormData({ ...formData, nominal: parseFloat(e.target.value) || 0 })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-bold text-emerald-600" />
+            </InputField>
+          )}
           <InputField label="Keterangan" icon={<FileText size={14} />}>
             <textarea value={formData.keterangan} onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })} rows={2}
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-medium placeholder:text-slate-400 resize-none" placeholder="Keterangan..." />
@@ -382,7 +397,7 @@ function DetailModal({ document: doc, onClose }: { document: ArsipDocument; onCl
       >
         <div className="flex items-start justify-between mb-8">
           <div className={cn("p-4 rounded-2xl border", config.bgColor, config.borderColor, config.color)}>
-            {doc.type === 'spm_listrik' ? <Zap size={28} /> : <Receipt size={28} />}
+            {config.icon}
           </div>
           <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
             <X size={20} />
@@ -402,7 +417,7 @@ function DetailModal({ document: doc, onClose }: { document: ArsipDocument; onCl
           <DetailRow label="Nomor Surat" value={doc.nomorSurat} />
           <DetailRow label="Tanggal" value={doc.tanggal} />
           <DetailRow label="Periode" value={doc.periode || '-'} />
-          <DetailRow label="Nominal" value={`Rp ${doc.nominal.toLocaleString('id-ID')}`} highlight />
+          {doc.type !== 'data_dukung' && <DetailRow label="Nominal" value={`Rp ${doc.nominal.toLocaleString('id-ID')}`} highlight />}
           {doc.keterangan && <DetailRow label="Keterangan" value={doc.keterangan} />}
           {doc.fileUrl && (
             <div className="flex justify-between items-center">

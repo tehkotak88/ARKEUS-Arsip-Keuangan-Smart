@@ -59,8 +59,8 @@ export default function App() {
             <Archive size={32} className="text-white md:hidden" />
             <Archive size={40} className="text-white hidden md:block" />
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 md:mb-3 text-slate-900">Rutan Pasangkayu</h1>
-          <p className="text-slate-500 mb-8 md:mb-10 font-medium tracking-wide text-sm md:text-base">E-Arsip Keuangan Digital</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 md:mb-3 text-slate-900">ARKEUS</h1>
+          <p className="text-slate-500 mb-8 md:mb-10 font-medium tracking-wide text-sm md:text-base">Arsip Keuangan Smart</p>
           <button onClick={loginWithGoogle}
             className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 text-sm">
             Masuk dengan Google
@@ -81,7 +81,7 @@ export default function App() {
             <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Archive size={18} className="text-white" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight uppercase text-slate-900">RUTAN</span>
+            <span className="font-extrabold text-lg tracking-tight uppercase text-slate-900">ARKEUS</span>
           </div>
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500">
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -96,7 +96,7 @@ export default function App() {
               <motion.div initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: 'spring', damping: 25 }}
                 className="w-72 h-full bg-white border-r border-slate-200 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
                 <nav className="space-y-2 mb-8">
-                  <MobileNavItem to="/" icon={<Archive size={20} />} label="E-Arsip" onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavItem to="/" icon={<Archive size={20} />} label="ARKEUS" onClick={() => setMobileMenuOpen(false)} />
                 </nav>
                 <div className="border-t border-slate-100 pt-6 space-y-4">
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
@@ -118,10 +118,10 @@ export default function App() {
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Archive size={22} className="text-white" />
             </div>
-            <span className="font-extrabold text-xl tracking-tight uppercase text-slate-900">RUTAN</span>
+            <span className="font-extrabold text-xl tracking-tight uppercase text-slate-900">ARKEUS</span>
           </div>
           <nav className="flex-1 space-y-1">
-            <NavItem to="/" icon={<Archive size={20} />} label="E-Arsip" />
+            <NavItem to="/" icon={<Archive size={20} />} label="ARKEUS" />
           </nav>
           <div className="mt-auto space-y-4">
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
