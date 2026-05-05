@@ -313,6 +313,8 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadMethod, setUploadMethod] = useState<'file' | 'link'>('file');
+  const [externalLink, setExternalLink] = useState('');
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -360,8 +362,8 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
     try {
       await addDoc(collection(db, 'arsip'), { 
         ...formData, 
-        fileUrl: uploadedUrl, 
-        fileName: pdfFile?.name || '', 
+        fileUrl: uploadMethod === 'link' ? externalLink : uploadedUrl, 
+        fileName: uploadMethod === 'link' ? 'External Link' : (pdfFile?.name || ''), 
         createdAt: serverTimestamp() 
       });
       onClose();
@@ -424,20 +426,34 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
             <textarea value={formData.keterangan} onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })} rows={2}
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-medium placeholder:text-slate-400 resize-none" placeholder="Keterangan..." />
           </InputField>
-          {/* PDF Upload */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold flex items-center gap-2 text-slate-400 uppercase tracking-[0.2em]"><Paperclip size={14} className="text-slate-300" /> Upload PDF</label>
-            <label className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed cursor-pointer transition-all", pdfFile ? "border-indigo-400 bg-indigo-50" : "border-slate-200 hover:border-slate-300 bg-slate-50")}>
-              <Upload size={20} className={pdfFile ? "text-indigo-600" : "text-slate-400"} />
-              <div className="flex-1">
-                <p className={cn("font-bold text-sm", pdfFile ? "text-indigo-600" : "text-slate-500")}>{pdfFile ? pdfFile.name : "Pilih file PDF..."}</p>
-                {pdfFile && <p className="text-[10px] text-slate-400 mt-0.5">{(pdfFile.size / 1024).toFixed(0)} KB</p>}
-              </div>
-              <input type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
-            </label>
-            {uploadProgress !== null && uploadProgress > 0 && uploadProgress < 100 && (
-              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
-                <motion.div className="h-full bg-indigo-500" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
+          {/* PDF Upload / Link Option */}
+          <div className="space-y-3">
+            <div className="flex p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
+              <button type="button" onClick={() => setUploadMethod('file')} className={cn("px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all", uploadMethod === 'file' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Upload File</button>
+              <button type="button" onClick={() => setUploadMethod('link')} className={cn("px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all", uploadMethod === 'link' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Gunakan Link</button>
+            </div>
+
+            {uploadMethod === 'file' ? (
+              <>
+                <label className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed cursor-pointer transition-all", pdfFile ? "border-indigo-400 bg-indigo-50" : "border-slate-200 hover:border-slate-300 bg-slate-50")}>
+                  <Upload size={20} className={pdfFile ? "text-indigo-600" : "text-slate-400"} />
+                  <div className="flex-1">
+                    <p className={cn("font-bold text-sm", pdfFile ? "text-indigo-600" : "text-slate-500")}>{pdfFile ? pdfFile.name : "Pilih file PDF..."}</p>
+                    {pdfFile && <p className="text-[10px] text-slate-400 mt-0.5">{(pdfFile.size / 1024).toFixed(0)} KB</p>}
+                  </div>
+                  <input type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
+                </label>
+                {uploadProgress !== null && uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
+                    <motion.div className="h-full bg-indigo-500" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="relative group">
+                <Paperclip className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
+                <input type="url" placeholder="Tempel link Google Drive / Dropbox di sini..." value={externalLink} onChange={(e) => setExternalLink(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-sm font-medium text-slate-700" />
               </div>
             )}
           </div>
