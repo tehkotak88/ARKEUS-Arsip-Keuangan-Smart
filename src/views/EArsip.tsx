@@ -311,44 +311,65 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setPdfFile(file);
+    setIsUploading(true);
     setUploadProgress(0);
 
     try {
-      let fileUrl = '';
-      let fileName = '';
+      const storageRef = ref(storage, `arsip/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-      if (pdfFile) {
-        const storageRef = ref(storage, `arsip/${Date.now()}_${pdfFile.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, pdfFile);
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        }, 
+        (error) => {
+          console.error(error);
+          alert('Upload gagal, silakan coba lagi.');
+          setIsUploading(false);
+        }, 
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          setUploadedUrl(url);
+          setIsUploading(false);
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      setIsUploading(false);
+    }
+  };
 
-        fileUrl = await new Promise((resolve, reject) => {
-          uploadTask.on('state_changed', 
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadProgress(progress);
-            }, 
-            (error) => reject(error), 
-            async () => {
-              const url = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve(url);
-            }
-          );
-        });
-        fileName = pdfFile.name;
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isUploading) {
+      alert('Tunggu sebentar, file sedang diupload...');
+      return;
+    }
+    
+    setSubmitting(true);
 
-      await addDoc(collection(db, 'arsip'), { ...formData, fileUrl, fileName, createdAt: serverTimestamp() });
+    try {
+      await addDoc(collection(db, 'arsip'), { 
+        ...formData, 
+        fileUrl: uploadedUrl, 
+        fileName: pdfFile?.name || '', 
+        createdAt: serverTimestamp() 
+      });
       onClose();
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       alert(`Gagal menyimpan: ${errMsg}`);
     } finally { 
       setSubmitting(false); 
-      setUploadProgress(null);
     }
   };
 
@@ -412,26 +433,21 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
                 <p className={cn("font-bold text-sm", pdfFile ? "text-indigo-600" : "text-slate-500")}>{pdfFile ? pdfFile.name : "Pilih file PDF..."}</p>
                 {pdfFile && <p className="text-[10px] text-slate-400 mt-0.5">{(pdfFile.size / 1024).toFixed(0)} KB</p>}
               </div>
-              <input type="file" accept=".pdf" className="hidden" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+              <input type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
             </label>
+            {uploadProgress !== null && uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
+                <motion.div className="h-full bg-indigo-500" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
+              </div>
+            )}
           </div>
           <div className="flex gap-4 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-white hover:bg-slate-50 text-slate-500 rounded-2xl font-bold border border-slate-200 uppercase tracking-widest text-[11px]">Batal</button>
-            <button type="submit" disabled={submitting} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-70 transition-all relative overflow-hidden group">
+            <button type="submit" disabled={submitting || isUploading} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-70 transition-all relative overflow-hidden group">
               {submitting ? (
-                <div className="flex flex-col items-center gap-1 w-full">
-                  <span className="uppercase tracking-widest text-[10px]">
-                    {uploadProgress !== null && uploadProgress < 100 ? `Mengirim... ${Math.round(uploadProgress)}%` : 'Menyimpan Data...'}
-                  </span>
-                  <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden absolute bottom-0 left-0">
-                    <motion.div 
-                      className="h-full bg-white" 
-                      initial={{ width: 0 }} 
-                      animate={{ width: `${uploadProgress || 0}%` }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
-                </div>
+                <span className="uppercase tracking-widest text-[11px]">Menyimpan Data...</span>
+              ) : isUploading ? (
+                <span className="uppercase tracking-widest text-[11px]">Mengupload PDF... {Math.round(uploadProgress || 0)}%</span>
               ) : (
                 <div className="flex items-center gap-2 uppercase tracking-widest text-[11px]">
                   <Upload size={16} /> Simpan Arsip
