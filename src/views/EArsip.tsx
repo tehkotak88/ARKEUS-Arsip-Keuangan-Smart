@@ -55,6 +55,11 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
   const [showForm, setShowForm] = useState(false);
   const [showDetail, setShowDetail] = useState<ArsipDocument | null>(null);
   const [activeTab, setActiveTab] = useState<'arsip' | 'statistik'>('arsip');
+  const [uploadProgressMap, setUploadProgressMap] = useState<Record<string, number>>({});
+
+  const updateUploadProgress = (docId: string, progress: number) => {
+    setUploadProgressMap(prev => ({ ...prev, [docId]: Math.round(progress) }));
+  };
 
   useEffect(() => {
     setFilterType('all'); // Reset filter when category changes
@@ -262,9 +267,15 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
                           <td className="px-6 py-4 text-sm font-bold text-emerald-600 text-right">{d.type !== 'data_dukung' ? `Rp ${d.nominal.toLocaleString('id-ID')}` : '-'}</td>
                           <td className="px-6 py-4">
                             {d.status === 'uploading' ? (
-                              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100 animate-pulse">
-                                <Clock size={12} /> Sedang Unggah...
-                              </span>
+                              <div className="flex flex-col gap-1 w-32">
+                                <div className="flex justify-between items-center text-[9px] font-bold text-amber-600 uppercase">
+                                  <span>Unggah...</span>
+                                  <span>{uploadProgressMap[d.id] || 0}%</span>
+                                </div>
+                                <div className="w-full h-1 bg-amber-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${uploadProgressMap[d.id] || 0}%` }} />
+                                </div>
+                              </div>
                             ) : d.fileUrl ? (
                               <a href={d.fileUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 hover:bg-indigo-100">
                                 <Paperclip size={12} /> PDF
@@ -296,7 +307,7 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
         </>
       )}
 
-      <AnimatePresence>{showForm && <AddArsipModal category={category} onClose={() => setShowForm(false)} />}</AnimatePresence>
+      <AnimatePresence>{showForm && <AddArsipModal category={category} onClose={() => setShowForm(false)} onUploadProgress={updateUploadProgress} />}</AnimatePresence>
       <AnimatePresence>{showDetail && <DetailModal document={showDetail} onClose={() => setShowDetail(null)} />}</AnimatePresence>
     </div>
   );
@@ -318,7 +329,7 @@ function StatCard({ icon, label, value, color, glow }: { icon: React.ReactNode; 
 }
 
 /* ======================== ADD FORM MODAL ======================== */
-function AddArsipModal({ onClose, category }: { onClose: () => void; category: string }) {
+function AddArsipModal({ onClose, category, onUploadProgress }: { onClose: () => void; category: string; onUploadProgress: (id: string, progress: number) => void }) {
   const defaultType = category === 'spm' ? 'spm_tunkin' : category === 'spp' ? 'spp_tunkin' : category === 'data_dukung' ? 'data_dukung' : 'spm_tunkin';
   const [formData, setFormData] = useState({ type: defaultType as DocType, title: '', nomorSurat: '', tanggal: format(new Date(), 'yyyy-MM-dd'), nominal: 0, keterangan: '', periode: '' });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -334,6 +345,9 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
     if (!file) return;
     
     setPdfFile(file);
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Peringatan: File ini cukup besar (' + (file.size / (1024 * 1024)).toFixed(1) + ' MB). Pengunggahan mungkin memakan waktu lebih lama. Disarankan untuk mengecilkan ukuran PDF jika memungkinkan.');
+    }
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -393,7 +407,11 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
         const storageRef = ref(storage, `arsip/${Date.now()}_${pdfFile.name}`);
         const uploadTask = uploadBytesResumable(storageRef, pdfFile);
         
-        uploadTask.on('state_changed', null, 
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            onUploadProgress(docRef.id, progress);
+          }, 
           (err) => console.error('Upload background failed:', err), 
           async () => {
             const url = await getDownloadURL(uploadTask.snapshot.ref);
