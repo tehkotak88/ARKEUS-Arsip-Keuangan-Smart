@@ -9,8 +9,10 @@ import {
 import { 
   LogOut,
   Menu,
-  X,
-  Archive
+  Archive,
+  FileText,
+  CreditCard,
+  Paperclip
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -96,7 +98,9 @@ export default function App() {
               <motion.div initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: 'spring', damping: 25 }}
                 className="w-72 h-full bg-white border-r border-slate-200 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
                 <nav className="space-y-2 mb-8">
-                  <MobileNavItem to="/" icon={<Archive size={20} />} label="ARKEUS" onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavItem to="/spm" icon={<FileText size={20} />} label="SPM" onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavItem to="/spp" icon={<CreditCard size={20} />} label="SPP" onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavItem to="/data-dukung" icon={<Paperclip size={20} />} label="Data Dukung" onClick={() => setMobileMenuOpen(false)} />
                 </nav>
                 <div className="border-t border-slate-100 pt-6 space-y-4">
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
@@ -121,7 +125,9 @@ export default function App() {
             <span className="font-extrabold text-xl tracking-tight uppercase text-slate-900">ARKEUS</span>
           </div>
           <nav className="flex-1 space-y-1">
-            <NavItem to="/" icon={<Archive size={20} />} label="ARKEUS" />
+            <NavItem to="/spm" icon={<FileText size={20} />} label="SPM" />
+            <NavItem to="/spp" icon={<CreditCard size={20} />} label="SPP" />
+            <NavItem to="/data-dukung" icon={<Paperclip size={20} />} label="Data Dukung" />
           </nav>
           <div className="mt-auto space-y-4">
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
@@ -145,8 +151,11 @@ export default function App() {
           <div className="flex-1 overflow-y-auto px-3 md:px-2">
             <div className="pb-8">
               <Routes>
-                <Route path="/" element={<EArsip />} />
-                <Route path="*" element={<EArsip />} />
+                <Route path="/spm" element={<EArsip category="spm" />} />
+                <Route path="/spp" element={<EArsip category="spp" />} />
+                <Route path="/data-dukung" element={<EArsip category="data_dukung" />} />
+                <Route path="/" element={<EArsip category="all" />} />
+                <Route path="*" element={<EArsip category="all" />} />
               </Routes>
             </div>
           </div>

@@ -47,13 +47,17 @@ const DOC_TYPE_CONFIG: Record<DocType, { label: string; icon: React.ReactNode; c
 
 const PIE_COLORS = ['#f59e0b', '#0ea5e9', '#8b5cf6', '#f97316', '#f43f5e', '#10b981'];
 
-export default function EArsip() {
+export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' | 'data_dukung' | 'all' }) {
   const [documents, setDocuments] = useState<ArsipDocument[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<DocType | 'all'>('all');
   const [showForm, setShowForm] = useState(false);
   const [showDetail, setShowDetail] = useState<ArsipDocument | null>(null);
   const [activeTab, setActiveTab] = useState<'arsip' | 'statistik'>('arsip');
+
+  useEffect(() => {
+    setFilterType('all'); // Reset filter when category changes
+  }, [category]);
 
   useEffect(() => {
     const q = query(collection(db, 'arsip'));
@@ -68,7 +72,12 @@ export default function EArsip() {
   const filtered = documents.filter(d => {
     const matchSearch = d.title.toLowerCase().includes(searchTerm.toLowerCase()) || d.nomorSurat.toLowerCase().includes(searchTerm.toLowerCase());
     const matchType = filterType === 'all' || d.type === filterType;
-    return matchSearch && matchType;
+    const matchCategory = 
+      category === 'all' || 
+      (category === 'spm' && d.type.startsWith('spm')) || 
+      (category === 'spp' && d.type.startsWith('spp')) || 
+      (category === 'data_dukung' && d.type === 'data_dukung');
+    return matchSearch && matchType && matchCategory;
   });
 
   const handleDelete = async (id: string) => {
@@ -86,8 +95,12 @@ export default function EArsip() {
     <div className="space-y-6 pt-4">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">ARKEUS : Arsip Keuangan Smart</h1>
-          <p className="text-slate-500 mt-1 font-medium text-sm md:text-base">Sistem Manajemen Arsip Keuangan Digital Terintegrasi.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+            {category === 'spm' ? 'ARKEUS : SPM' : category === 'spp' ? 'ARKEUS : SPP' : category === 'data_dukung' ? 'ARKEUS : Data Dukung' : 'ARKEUS : Arsip Keuangan Smart'}
+          </h1>
+          <p className="text-slate-500 mt-1 font-medium text-sm md:text-base">
+            {category === 'spm' ? 'Manajemen Surat Perintah Membayar.' : category === 'spp' ? 'Manajemen Surat Permintaan Pembayaran.' : category === 'data_dukung' ? 'Manajemen Data Dukung Keuangan.' : 'Sistem Manajemen Arsip Keuangan Digital Terintegrasi.'}
+          </p>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3.5 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/30 active:scale-95 w-full md:w-auto md:self-start text-sm">
           <Plus size={18} /> Tambah Arsip
@@ -95,12 +108,12 @@ export default function EArsip() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
-        <StatCard icon={<FileText className="text-indigo-600" size={20} />} label="Total Arsip" value={documents.length.toString()} color="bg-indigo-50" glow="glow-indigo" />
-        <StatCard icon={<DollarSign className="text-emerald-600" size={20} />} label="Total Nominal" value={`Rp ${totalNominal.toLocaleString('id-ID')}`} color="bg-emerald-50" />
-        <StatCard icon={<Zap className="text-amber-600" size={20} />} label="Total SPM" value={documents.filter(d => d.type.startsWith('spm')).length.toString()} color="bg-amber-50" />
-        <StatCard icon={<Receipt className="text-emerald-600" size={20} />} label="Total SPP" value={documents.filter(d => d.type.startsWith('spp')).length.toString()} color="bg-emerald-50" />
-        <StatCard icon={<FileStack className="text-violet-600" size={20} />} label="Data Dukung" value={documents.filter(d => d.type === 'data_dukung').length.toString()} color="bg-violet-50" />
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+        <StatCard icon={<FileText className="text-indigo-600" size={20} />} label="Total Arsip" value={filtered.length.toString()} color="bg-indigo-50" glow="glow-indigo" />
+        {category !== 'data_dukung' && <StatCard icon={<DollarSign className="text-emerald-600" size={20} />} label="Total Nominal" value={`Rp ${filtered.reduce((sum, d) => sum + (d.nominal || 0), 0).toLocaleString('id-ID')}`} color="bg-emerald-50" />}
+        {(category === 'all' || category === 'spm') && <StatCard icon={<Zap className="text-amber-600" size={20} />} label="Total SPM" value={documents.filter(d => d.type.startsWith('spm')).length.toString()} color="bg-amber-50" />}
+        {(category === 'all' || category === 'spp') && <StatCard icon={<CreditCard className="text-emerald-600" size={20} />} label="Total SPP" value={documents.filter(d => d.type.startsWith('spp')).length.toString()} color="bg-emerald-50" />}
+        {(category === 'all' || category === 'data_dukung') && <StatCard icon={<Paperclip className="text-violet-600" size={20} />} label="Data Dukung" value={documents.filter(d => d.type === 'data_dukung').length.toString()} color="bg-violet-50" />}
       </div>
 
       {/* Tabs */}
@@ -165,7 +178,9 @@ export default function EArsip() {
             <select value={filterType} onChange={(e) => setFilterType(e.target.value as DocType | 'all')}
               className="bg-white border border-slate-200 px-4 py-3.5 rounded-2xl text-sm font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto">
               <option value="all">Semua Tipe</option>
-              {Object.entries(DOC_TYPE_CONFIG).map(([key, cfg]) => <option key={key} value={key}>{cfg.label}</option>)}
+              {Object.entries(DOC_TYPE_CONFIG)
+                .filter(([key]) => category === 'all' || (category === 'spm' && key.startsWith('spm')) || (category === 'spp' && key.startsWith('spp')) || (category === 'data_dukung' && key === 'data_dukung'))
+                .map(([key, cfg]) => <option key={key} value={key}>{cfg.label}</option>)}
             </select>
           </div>
 
@@ -256,7 +271,7 @@ export default function EArsip() {
         </>
       )}
 
-      <AnimatePresence>{showForm && <AddArsipModal onClose={() => setShowForm(false)} />}</AnimatePresence>
+      <AnimatePresence>{showForm && <AddArsipModal category={category} onClose={() => setShowForm(false)} />}</AnimatePresence>
       <AnimatePresence>{showDetail && <DetailModal document={showDetail} onClose={() => setShowDetail(null)} />}</AnimatePresence>
     </div>
   );
@@ -278,8 +293,9 @@ function StatCard({ icon, label, value, color, glow }: { icon: React.ReactNode; 
 }
 
 /* ======================== ADD FORM MODAL ======================== */
-function AddArsipModal({ onClose }: { onClose: () => void }) {
-  const [formData, setFormData] = useState({ type: 'spm_tunkin' as DocType, title: '', nomorSurat: '', tanggal: format(new Date(), 'yyyy-MM-dd'), nominal: 0, keterangan: '', periode: '' });
+function AddArsipModal({ onClose, category }: { onClose: () => void; category: string }) {
+  const defaultType = category === 'spm' ? 'spm_tunkin' : category === 'spp' ? 'spp_tunkin' : category === 'data_dukung' ? 'data_dukung' : 'spm_tunkin';
+  const [formData, setFormData] = useState({ type: defaultType as DocType, title: '', nomorSurat: '', tanggal: format(new Date(), 'yyyy-MM-dd'), nominal: 0, keterangan: '', periode: '' });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -315,7 +331,9 @@ function AddArsipModal({ onClose }: { onClose: () => void }) {
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Tipe Dokumen *</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {(Object.entries(DOC_TYPE_CONFIG) as [DocType, typeof DOC_TYPE_CONFIG['spm_tunkin']][]).map(([key, config]) => (
+              {(Object.entries(DOC_TYPE_CONFIG) as [DocType, typeof DOC_TYPE_CONFIG['spm_tunkin']][])
+                .filter(([key]) => category === 'all' || (category === 'spm' && key.startsWith('spm')) || (category === 'spp' && key.startsWith('spp')) || (category === 'data_dukung' && key === 'data_dukung'))
+                .map(([key, config]) => (
                 <button key={key} type="button" onClick={() => setFormData({ ...formData, type: key })}
                   className={cn("flex items-center gap-2 p-3 rounded-xl border-2 transition-all font-bold text-[10px]",
                     formData.type === key ? "border-indigo-500 bg-indigo-50 text-indigo-600" : "border-slate-200 text-slate-500 hover:border-slate-300")}>
