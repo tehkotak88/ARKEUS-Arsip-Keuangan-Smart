@@ -53,8 +53,9 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 text-slate-900">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(79,70,229,0.08),rgba(0,0,0,0))]" />
+      <div className="min-h-screen flex items-center justify-center bg-[#fdfdff] p-4 text-slate-900 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(79,70,229,0.15),rgba(255,255,255,0))]" />
+        <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4f46e5 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="max-w-md w-full bg-white p-8 md:p-10 rounded-[2rem] md:rounded-[2.5rem] shadow-xl border border-slate-200 text-center relative z-10">
           <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-600 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-xl shadow-indigo-600/20">
@@ -75,7 +76,8 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col md:flex-row md:p-4 md:gap-4 overflow-hidden">
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col md:flex-row md:p-4 md:gap-4 overflow-hidden relative">
+        <div className="absolute inset-0 bg-[radial-gradient(at_0%_0%,rgba(99,102,241,0.05)_0px,transparent_50%)] pointer-events-none" />
         
         {/* Mobile Header */}
         <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50">

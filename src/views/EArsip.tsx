@@ -128,7 +128,7 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
 
       {activeTab === 'statistik' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-sm glow-indigo">
+          <div className="glass-panel p-8 rounded-[2rem] shadow-sm glow-indigo">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-8">Distribusi Dokumen</h3>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -149,7 +149,7 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
               </div>
             </div>
           </div>
-          <div className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-sm glow-indigo">
+          <div className="glass-panel p-8 rounded-[2rem] shadow-sm glow-indigo">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-8">Nominal per Kategori</h3>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -280,7 +280,7 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
 /* ======================== STAT CARD ======================== */
 function StatCard({ icon, label, value, color, glow }: { icon: React.ReactNode; label: string; value: string; color: string; glow?: string }) {
   return (
-    <div className={cn("bg-white border border-slate-200 p-4 md:p-6 rounded-2xl md:rounded-3xl flex items-center justify-between shadow-sm", glow)}>
+    <div className={cn("glass-panel p-4 md:p-6 rounded-2xl md:rounded-3xl flex items-center justify-between shadow-sm", glow)}>
       <div className="min-w-0 flex-1">
         <p className="text-[9px] md:text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1">{label}</p>
         <p className="text-lg md:text-2xl font-bold tracking-tight text-slate-900 truncate">{value}</p>
