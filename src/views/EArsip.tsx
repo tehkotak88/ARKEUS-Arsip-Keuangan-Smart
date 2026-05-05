@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UploadTask } from 'firebase/storage';
 import { Archive, Plus, Search, Zap, Receipt, Calendar, DollarSign, FileText, Trash2, Eye, X, Upload, Clock, Droplets, Phone, Fuel, UtensilsCrossed, BarChart3, Paperclip, Users, Briefcase, FileStack, CreditCard } from 'lucide-react';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, uploadBytesResumable, UploadTask } from 'firebase/storage';
-import { db, storage } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -330,138 +329,36 @@ function StatCard({ icon, label, value, color, glow }: { icon: React.ReactNode; 
 }
 
 /* ======================== ADD FORM MODAL ======================== */
-function AddArsipModal({ onClose, category, onUploadProgress }: { onClose: () => void; category: string; onUploadProgress: (id: string, progress: number) => void }) {
+function AddArsipModal({ onClose, category }: { onClose: () => void; category: string }) {
   const defaultType = category === 'spm' ? 'spm_tunkin' : category === 'spp' ? 'spp_tunkin' : category === 'data_dukung' ? 'data_dukung' : 'spm_tunkin';
   const [formData, setFormData] = useState({ type: defaultType as DocType, title: '', nomorSurat: '', tanggal: format(new Date(), 'yyyy-MM-dd'), nominal: 0, keterangan: '', periode: '' });
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string>('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'link'>('file');
   const [externalLink, setExternalLink] = useState('');
-  
-  const currentUploadTask = useRef<UploadTask | null>(null);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Batalkan upload sebelumnya jika ada
-    if (currentUploadTask.current) {
-      currentUploadTask.current.cancel();
-    }
-
-    setPdfFile(file);
-    if (file.size > 10 * 1024 * 1024) { // Naikkan batas ke 10MB
-      alert('Peringatan: File ini besar (' + (file.size / (1024 * 1024)).toFixed(1) + ' MB). Mohon tunggu proses upload sampai selesai.');
-    }
-    
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    try {
-      const storageRef = ref(storage, `arsip/${Date.now()}_${file.name}`);
-      
-      // Jika file sangat kecil (di bawah 1MB), gunakan uploadBytes biasa agar lebih cepat
-      if (file.size < 1 * 1024 * 1024) {
-        setUploadProgress(50); // Set ke 50% sebagai indikator awal
-        const snapshot = await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(snapshot.ref);
-        setUploadedUrl(url);
-        setIsUploading(false);
-        setUploadProgress(100);
-        currentUploadTask.current = null;
-      } else {
-        // Untuk file besar tetap gunakan resumable agar ada progress bar
-        const uploadTask = uploadBytesResumable(storageRef, file);
-        currentUploadTask.current = uploadTask;
-
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          }, 
-          (error) => {
-            if (error.code !== 'storage/canceled') {
-              console.error('Full Upload Error:', error);
-              alert(`Gagal Upload: ${error.message}\nPastikan "Storage Rules" di Firebase Console sudah di-set ke Public atau Auth.`);
-            }
-            setIsUploading(false);
-          }, 
-          async () => {
-            const url = await getDownloadURL(uploadTask.snapshot.ref);
-            setUploadedUrl(url);
-            setIsUploading(false);
-            currentUploadTask.current = null;
-          }
-        );
-      }
-    } catch (error: any) {
-      console.error('General Upload Error:', error);
-      alert('Error Sistem: ' + error.message);
-      setIsUploading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+    
+    if (!externalLink) {
+      alert('Silakan masukkan link dokumen (contoh: Link Google Drive).');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const isExternal = uploadMethod === 'link';
-      
-      // Jika user klik simpan tapi file belum dipilih
-      if (uploadMethod === 'file' && !pdfFile && !uploadedUrl) {
-        alert('Silakan pilih file PDF.');
-        setSubmitting(false);
-        return;
-      }
-
-      const initialData = {
+      await addDoc(collection(db, 'arsip'), {
         ...formData,
-        fileUrl: isExternal ? externalLink : (isUploading ? '' : uploadedUrl),
-        fileName: isExternal ? 'External Link' : (pdfFile?.name || ''),
-        status: (isExternal || !isUploading) ? 'ready' : 'uploading',
+        fileUrl: externalLink,
+        fileName: 'Link Dokumen',
+        status: 'ready',
         createdAt: serverTimestamp()
-      };
-
-      const docRef = await addDoc(collection(db, 'arsip'), initialData);
-
-      // Jika masih upload (hanya untuk yang resumable), kita pasang listener
-      if (uploadMethod === 'file' && isUploading && currentUploadTask.current) {
-        const task = currentUploadTask.current;
-        task.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            onUploadProgress(docRef.id, progress);
-          },
-          null,
-          async () => {
-            const url = await getDownloadURL(task.snapshot.ref);
-            await updateDoc(doc(db, 'arsip', docRef.id), {
-              fileUrl: url,
-              status: 'ready'
-            });
-            onUploadProgress(docRef.id, 100);
-          }
-        );
-      } else if (uploadMethod === 'file' && !isUploading && uploadedUrl) {
-        // Jika upload sudah beres (khususnya untuk uploadBytes yang cepat)
-        onUploadProgress(docRef.id, 100);
-      }
+      });
 
       onClose();
     } catch (error: any) {
       console.error('Error saving document:', error);
-      // Menampilkan pesan error yang lebih spesifik agar mudah dilacak
-      const errorMessage = error.message || 'Unknown error';
-      if (errorMessage.includes('permission-denied')) {
-        alert('Gagal: Izin ditolak. Pastikan Anda sudah login dan "Firestore Rules" sudah di-set ke allow read, write.');
-      } else {
-        alert('Gagal menyimpan data: ' + errorMessage);
-      }
+      alert('Gagal menyimpan data: ' + (error.message || 'Error tidak diketahui'));
     } finally {
       setSubmitting(false);
     }
@@ -518,40 +415,6 @@ function AddArsipModal({ onClose, category, onUploadProgress }: { onClose: () =>
             <textarea value={formData.keterangan} onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })} rows={2}
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-medium placeholder:text-slate-400 resize-none" placeholder="Keterangan..." />
           </InputField>
-          {/* PDF Upload / Link Option */}
-          <div className="space-y-3">
-            <div className="flex p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
-              <button type="button" onClick={() => setUploadMethod('file')} className={cn("px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all", uploadMethod === 'file' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Upload File</button>
-              <button type="button" onClick={() => setUploadMethod('link')} className={cn("px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all", uploadMethod === 'link' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Gunakan Link</button>
-            </div>
-
-            {uploadMethod === 'file' ? (
-              <>
-                <label className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed cursor-pointer transition-all", pdfFile ? "border-indigo-400 bg-indigo-50" : "border-slate-200 hover:border-slate-300 bg-slate-50")}>
-                  <Upload size={20} className={pdfFile ? "text-indigo-600" : "text-slate-400"} />
-                  <div className="flex-1">
-                    <p className={cn("font-bold text-sm", pdfFile ? "text-indigo-600" : "text-slate-500")}>{pdfFile ? pdfFile.name : "Pilih file PDF..."}</p>
-                    {pdfFile && <p className="text-[10px] text-slate-400 mt-0.5">{(pdfFile.size / 1024).toFixed(0)} KB</p>}
-                  </div>
-                  <input type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
-                </label>
-                {uploadProgress !== null && uploadProgress > 0 && uploadProgress < 100 && (
-                  <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
-                    <motion.div className="h-full bg-indigo-500" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="relative group">
-                <Paperclip className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
-                <input type="url" placeholder="Tempel link Google Drive / Dropbox di sini..." value={externalLink} onChange={(e) => setExternalLink(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-sm font-medium text-slate-700" />
-              </div>
-            )}
-          </div>
-          <div className="flex gap-4 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-white hover:bg-slate-50 text-slate-500 rounded-2xl font-bold border border-slate-200 uppercase tracking-widest text-[11px]">Batal</button>
-            <button type="submit" disabled={submitting} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 disabled:opacity-70 transition-all relative overflow-hidden group">
               <div className="flex items-center gap-2 uppercase tracking-widest text-[11px]">
                 {submitting ? 'Menyimpan...' : <><Upload size={16} /> Simpan Sekarang</>}
               </div>
