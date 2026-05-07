@@ -17,10 +17,8 @@ import {
   Award,
   Calendar
 } from 'lucide-react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { isDueSoon, isOverdue, formatDateString, cn } from '../lib/utils';
-
 
 interface Employee {
   id: string;
@@ -39,11 +37,27 @@ export default function Reports() {
   const [activeReport, setActiveReport] = useState<'statistics' | 'pangkat' | 'kgb'>('statistics');
 
   useEffect(() => {
-    const q = query(collection(db, 'employees'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
-    });
-    return unsubscribe;
+    const fetchEmployees = async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*');
+      
+      if (data) setEmployees(data as Employee[]);
+      if (error) console.error('Error fetching employees:', error);
+    };
+
+    fetchEmployees();
+
+    const subscription = supabase
+      .channel('reports-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
+        fetchEmployees();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Data Preparation

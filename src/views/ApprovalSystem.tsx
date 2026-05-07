@@ -7,8 +7,7 @@ import {
   Award,
   TrendingUp
 } from 'lucide-react';
-import { collection, query, onSnapshot, doc, getDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { formatDateString, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -20,64 +19,93 @@ interface ApprovalRequest {
   type: 'pangkat' | 'kgb';
   newValue: string;
   status: 'pending' | 'approved' | 'rejected';
-  requestDate: any;
+  requestDate: string;
+  processedDate?: string;
   reason?: string;
 }
 
 export default function ApprovalSystem() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
 
+  const fetchRequests = async () => {
+    const { data, error } = await supabase
+      .from('approvals')
+      .select('*');
+    
+    if (data) setRequests(data as ApprovalRequest[]);
+    if (error) console.error('Error fetching requests:', error);
+  };
+
   useEffect(() => {
-    const q = query(collection(db, 'approvals'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApprovalRequest)));
-    });
-    return unsubscribe;
+    fetchRequests();
+
+    const subscription = supabase
+      .channel('approval-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'approvals' }, () => {
+        fetchRequests();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleProcess = async (request: ApprovalRequest, status: 'approved' | 'rejected') => {
     try {
-      const docRef = doc(db, 'approvals', request.id);
-      
       if (status === 'approved') {
-        const empRef = doc(db, 'employees', request.employeeId);
-        const empSnap = await getDoc(empRef);
+        const { data: empData, error: empError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('id', request.employeeId)
+          .single();
         
-        if (empSnap.exists()) {
-          const empData = empSnap.data();
+        if (empData) {
           const today = format(new Date(), 'yyyy-MM-dd');
           
           // Add to History
-          await addDoc(collection(db, 'history'), {
-            employeeId: request.employeeId,
-            type: request.type,
-            date: today,
-            value: request.newValue,
-            note: `Disetujui melalui sistem pada ${today}`
-          });
+          const { error: histError } = await supabase
+            .from('history')
+            .insert([{
+              employeeId: request.employeeId,
+              type: request.type,
+              date: today,
+              value: request.newValue,
+              note: `Disetujui melalui sistem pada ${today}`
+            }]);
+          if (histError) throw histError;
 
           // Update Employee Milestone
-          const updates: any = { updatedAt: serverTimestamp() };
+          const updates: any = { updatedAt: new Date().toISOString() };
           if (request.type === 'pangkat') {
             updates.lastPangkatDate = today;
-            updates.currentRank = request.newValue === 'Pangkat Selanjutnya' ? empData.currentRank : request.newValue; // Placeholder logic
+            updates.currentRank = request.newValue === 'Pangkat Selanjutnya' ? empData.currentRank : request.newValue;
           } else {
             updates.lastKgbDate = today;
-            // update salary if kgb
           }
-          await updateDoc(empRef, updates);
+          const { error: updateError } = await supabase
+            .from('employees')
+            .update(updates)
+            .eq('id', request.employeeId);
+          if (updateError) throw updateError;
         }
+        if (empError) throw empError;
       }
 
-      await updateDoc(docRef, {
-        status,
-        processedDate: serverTimestamp(),
-      });
+      const { error: processError } = await supabase
+        .from('approvals')
+        .update({
+          status,
+          processedDate: new Date().toISOString(),
+        })
+        .eq('id', request.id);
+      
+      if (processError) throw processError;
 
       alert(`Permohonan ${status === 'approved' ? 'disetujui' : 'ditolak'}.`);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Gagal memproses permohonan.');
+      alert('Gagal memproses permohonan: ' + error.message);
     }
   };
 
@@ -153,7 +181,7 @@ export default function ApprovalSystem() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-400 font-bold font-mono text-[10px] text-right">
-                        {req.requestDate?.toDate ? formatDateString(req.requestDate.toDate()) : '...'}
+                        {req.requestDate ? formatDateString(req.requestDate) : '...'}
                       </td>
                     </tr>
                   ))}
@@ -196,7 +224,7 @@ function RequestCard({ request, onApprove, onReject }: { request: ApprovalReques
           <div className="flex justify-between items-center text-[11px]">
             <span className="text-slate-400 font-bold uppercase tracking-widest">Waktu Pengajuan</span>
             <span className="font-bold font-mono text-slate-500 text-[10px]">
-              {request.requestDate?.toDate ? formatDateString(request.requestDate.toDate()) : '...'}
+                {request.requestDate ? formatDateString(request.requestDate) : '...'}
             </span>
           </div>
         </div>

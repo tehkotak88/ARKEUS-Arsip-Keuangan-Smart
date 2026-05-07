@@ -9,8 +9,7 @@ import {
   ArrowUpCircle,
   FileText
 } from 'lucide-react';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { formatDateString, cn } from '../lib/utils';
 import { motion } from 'motion/react';
 
@@ -45,36 +44,61 @@ export default function EmployeeDetail() {
     if (!id) return;
 
     const fetchEmployee = async () => {
-      const docRef = doc(db, 'employees', id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setEmployee({ id: docSnap.id, ...docSnap.data() } as Employee);
-      }
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (data) setEmployee(data as Employee);
+      if (error) console.error('Error fetching employee:', error);
     };
     fetchEmployee();
 
-    const q = query(collection(db, 'history'), where('employeeId', '==', id));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoryItem)));
-    });
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from('history')
+        .select('*')
+        .eq('employeeId', id);
+      
+      if (data) setHistory(data as HistoryItem[]);
+      if (error) console.error('Error fetching history:', error);
+    };
+    fetchHistory();
 
-    return unsubscribe;
+    const subscription = supabase
+      .channel(`history-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'history', filter: `employeeId=eq.${id}` }, () => {
+        fetchHistory();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [id]);
 
   const handleRequestPromotion = async (type: 'pangkat' | 'kgb') => {
     if (!employee) return;
     
     if (window.confirm(`Ajukan permohonan ${type.toUpperCase()} untuk ${employee.name}?`)) {
-      await addDoc(collection(db, 'approvals'), {
-        employeeId: employee.id,
-        employeeName: employee.name,
-        type,
-        newValue: type === 'pangkat' ? 'Pangkat Selanjutnya' : 'Gaji Selanjutnya',
-        status: 'pending',
-        requestDate: serverTimestamp(),
-      });
-      alert('Permohonan telah diajukan ke atasan.');
-      navigate('/approvals');
+      const { error } = await supabase
+        .from('approvals')
+        .insert([{
+          employeeId: employee.id,
+          employeeName: employee.name,
+          type,
+          newValue: type === 'pangkat' ? 'Pangkat Selanjutnya' : 'Gaji Selanjutnya',
+          status: 'pending',
+          requestDate: new Date().toISOString(),
+        }]);
+      
+      if (error) {
+        alert('Gagal mengajukan permohonan: ' + error.message);
+      } else {
+        alert('Permohonan telah diajukan ke atasan.');
+        navigate('/approvals');
+      }
     }
   };
 

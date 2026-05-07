@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UploadTask } from 'firebase/storage';
 import { Archive, Plus, Search, Zap, Receipt, Calendar, DollarSign, FileText, Trash2, Eye, X, Upload, Clock, Droplets, Phone, Fuel, UtensilsCrossed, BarChart3, Paperclip, Users, Briefcase, FileStack, CreditCard } from 'lucide-react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -66,13 +64,29 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
   }, [category]);
 
   useEffect(() => {
-    const q = query(collection(db, 'arsip'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ArsipDocument));
-      docs.sort((a, b) => b.tanggal.localeCompare(a.tanggal));
-      setDocuments(docs);
-    });
-    return unsubscribe;
+    const fetchDocs = async () => {
+      const { data, error } = await supabase
+        .from('arsip')
+        .select('*')
+        .order('tanggal', { ascending: false });
+      
+      if (data) setDocuments(data as ArsipDocument[]);
+      if (error) console.error('Error fetching docs:', error);
+    };
+
+    fetchDocs();
+
+    // Realtime subscription
+    const subscription = supabase
+      .channel('arsip-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'arsip' }, () => {
+        fetchDocs();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const filtered = documents.filter(d => {
@@ -87,7 +101,13 @@ export default function EArsip({ category = 'all' }: { category?: 'spm' | 'spp' 
   });
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Hapus arsip ini?')) await deleteDoc(doc(db, 'arsip', id));
+    if (window.confirm('Hapus arsip ini?')) {
+      const { error } = await supabase
+        .from('arsip')
+        .delete()
+        .eq('id', id);
+      if (error) alert('Gagal menghapus: ' + error.message);
+    }
   };
 
   const totalNominal = documents.reduce((sum, d) => sum + (d.nominal || 0), 0);
@@ -335,25 +355,54 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
   const [submitting, setSubmitting] = useState(false);
   const [externalLink, setExternalLink] = useState('');
 
+  const [file, setFile] = useState<File | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     
-    if (!externalLink) {
-      alert('Silakan masukkan link dokumen.');
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      await addDoc(collection(db, 'arsip'), {
-        ...formData,
-        fileUrl: externalLink,
-        fileName: 'Link Dokumen',
-        status: 'ready',
-        createdAt: serverTimestamp()
-      });
+      let finalFileUrl = externalLink;
+
+      // 1. Upload file if selected
+      if (file) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('documents')
+          .getPublicUrl(filePath);
+        
+        finalFileUrl = publicUrl;
+      }
+
+      if (!finalFileUrl) {
+        alert('Silakan pilih file atau masukkan link.');
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. Save to Database
+      const { error } = await supabase
+        .from('arsip')
+        .insert([{
+          ...formData,
+          fileUrl: finalFileUrl,
+          fileName: file ? file.name : 'Link Dokumen',
+          status: 'ready',
+          createdAt: new Date().toISOString()
+        }]);
+
+      if (error) throw error;
       onClose();
     } catch (error: any) {
       console.error('Error saving document:', error);
@@ -415,10 +464,17 @@ function AddArsipModal({ onClose, category }: { onClose: () => void; category: s
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-medium placeholder:text-slate-400 resize-none" placeholder="Keterangan..." />
           </InputField>
 
-          <InputField label="Link Dokumen (Google Drive)" icon={<Paperclip size={14} />} required>
-            <input type="url" required value={externalLink} onChange={(e) => setExternalLink(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-bold placeholder:text-slate-400 text-xs" placeholder="https://drive.google.com/..." />
-          </InputField>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField label="Upload File PDF" icon={<Upload size={14} />}>
+              <input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-2.5 text-xs font-bold text-slate-500 file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
+            </InputField>
+
+            <InputField label="Atau Link Eksternal" icon={<Paperclip size={14} />}>
+              <input type="url" value={externalLink} onChange={(e) => setExternalLink(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-900 font-bold placeholder:text-slate-400 text-xs" placeholder="https://drive.google.com/..." />
+            </InputField>
+          </div>
 
           <div className="flex gap-4 pt-4">
             <button type="button" onClick={onClose} className="flex-1 py-4 bg-white hover:bg-slate-50 text-slate-500 rounded-2xl font-bold border border-slate-200 uppercase tracking-widest text-[10px] transition-colors">Batal</button>

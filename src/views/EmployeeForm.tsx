@@ -9,8 +9,7 @@ import {
   Calendar,
   DollarSign
 } from 'lucide-react';
-import { doc, getDoc, setDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { calculateNextPangkat, calculateNextKgb } from '../lib/utils';
 import { format } from 'date-fns';
 
@@ -34,20 +33,24 @@ export default function EmployeeForm() {
   useEffect(() => {
     if (isEdit) {
       const fetchEmployee = async () => {
-        const docRef = doc(db, 'employees', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        const { data, error } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (data) {
           setFormData({
             nip: data.nip || '',
             name: data.name || '',
             currentRank: data.currentRank || '',
-            currentSalary: data.currentSalary || 0,
+            currentSalary: Number(data.currentSalary) || 0,
             lastPangkatDate: data.lastPangkatDate || '',
             lastKgbDate: data.lastKgbDate || '',
             status: data.status || 'active'
           });
         }
+        if (error) console.error('Error fetching employee:', error);
       };
       fetchEmployee();
     }
@@ -65,19 +68,28 @@ export default function EmployeeForm() {
         ...formData,
         nextPangkatDate: format(nextPangkatDate, 'yyyy-MM-dd'),
         nextKgbDate: format(nextKgbDate, 'yyyy-MM-dd'),
-        updatedAt: serverTimestamp()
+        updatedAt: new Date().toISOString()
       };
 
+      let error;
       if (isEdit) {
-        await updateDoc(doc(db, 'employees', id), finalData);
+        const { error: err } = await supabase
+          .from('employees')
+          .update(finalData)
+          .eq('id', id);
+        error = err;
       } else {
-        const newDocRef = doc(collection(db, 'employees'));
-        await setDoc(newDocRef, finalData);
+        const { error: err } = await supabase
+          .from('employees')
+          .insert([finalData]);
+        error = err;
       }
 
+      if (error) throw error;
       navigate('/employees');
-    } catch (error) {
-      handleFirestoreError(error, isEdit ? OperationType.UPDATE : OperationType.WRITE, `employees/${id || 'new'}`);
+    } catch (error: any) {
+      console.error('Database Error:', error);
+      alert('Gagal menyimpan data: ' + error.message);
     } finally {
       setSubmitting(false);
     }

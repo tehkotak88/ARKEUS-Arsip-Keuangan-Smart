@@ -8,8 +8,7 @@ import {
   CheckCircle,
   UserPlus
 } from 'lucide-react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { formatDateString, isDueSoon, isOverdue, cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -31,16 +30,32 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const q = query(collection(db, 'employees'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const emps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-      setEmployees(emps);
+    const fetchEmployees = async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*');
       
-      setPangkatDue(emps.filter(e => isDueSoon(e.nextPangkatDate) || isOverdue(e.nextPangkatDate)));
-      setKgbDue(emps.filter(e => isDueSoon(e.nextKgbDate) || isOverdue(e.nextKgbDate)));
+      if (data) {
+        setEmployees(data);
+        setPangkatDue(data.filter(e => isDueSoon(e.nextPangkatDate) || isOverdue(e.nextPangkatDate)));
+        setKgbDue(data.filter(e => isDueSoon(e.nextKgbDate) || isOverdue(e.nextKgbDate)));
+      }
+      if (error) console.error('Error fetching employees:', error);
       setLoading(false);
-    });
-    return unsubscribe;
+    };
+
+    fetchEmployees();
+
+    const subscription = supabase
+      .channel('employee-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
+        fetchEmployees();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (

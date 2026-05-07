@@ -16,8 +16,8 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth, loginWithGoogle, logout } from './lib/firebase';
+import { User } from '@supabase/supabase-js';
+import { supabase, signInWithGoogle, signOut } from './lib/supabase';
 import { cn } from './lib/utils';
 import { format } from 'date-fns';
 
@@ -29,11 +29,19 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setLoading(false);
     });
-    return unsubscribe;
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
@@ -65,10 +73,12 @@ export default function App() {
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 md:mb-3 text-slate-900">ARKEUS</h1>
           <p className="text-slate-500 mb-8 md:mb-10 font-medium tracking-wide text-sm md:text-base">Arsip Keuangan Smart</p>
-          <button onClick={loginWithGoogle}
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 text-sm">
-            Masuk dengan Google
-          </button>
+          <div className="space-y-3">
+            <button onClick={signInWithGoogle}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 text-sm">
+              Masuk dengan Google
+            </button>
+          </div>
           <p className="mt-6 md:mt-8 text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Authorized Access Only</p>
         </motion.div>
       </div>
@@ -108,10 +118,10 @@ export default function App() {
                 </nav>
                 <div className="border-t border-slate-800 pt-6 space-y-4 relative z-10">
                   <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-4 border border-slate-700/50">
-                    <p className="text-sm font-bold truncate text-white">{user.displayName}</p>
+                    <p className="text-sm font-bold truncate text-white">{user.user_metadata?.full_name || user.user_metadata?.name || 'User'}</p>
                     <p className="text-[10px] text-slate-400 truncate mt-1">{user.email}</p>
                   </div>
-                  <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
+                  <button onClick={signOut} className="w-full flex items-center gap-3 p-3 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
                     <LogOut size={20} /><span className="font-bold text-sm">Sign Out</span>
                   </button>
                 </div>
@@ -136,10 +146,10 @@ export default function App() {
           </nav>
           <div className="mt-auto space-y-4 relative z-10">
             <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-4 border border-slate-700/50">
-              <p className="text-sm font-bold truncate text-white">{user.displayName}</p>
+              <p className="text-sm font-bold truncate text-white">{user.user_metadata?.full_name || user.user_metadata?.name || 'User'}</p>
               <p className="text-[10px] text-slate-400 truncate mt-1">{user.email}</p>
             </div>
-            <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
+            <button onClick={signOut} className="w-full flex items-center gap-3 p-3 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
               <LogOut size={20} /><span className="font-bold text-sm">Sign Out</span>
             </button>
           </div>

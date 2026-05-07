@@ -5,8 +5,7 @@ import {
   Edit2,
   Trash2
 } from 'lucide-react';
-import { collection, query, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDateString } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,12 +27,28 @@ export default function EmployeeList() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const q = query(collection(db, 'employees'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setEmployees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
+    const fetchEmployees = async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*');
+      
+      if (data) setEmployees(data as Employee[]);
+      if (error) console.error('Error fetching employees:', error);
       setLoading(false);
-    });
-    return unsubscribe;
+    };
+
+    fetchEmployees();
+
+    const subscription = supabase
+      .channel('employee-list-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
+        fetchEmployees();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const filteredEmployees = employees.filter(e => 
@@ -44,7 +59,11 @@ export default function EmployeeList() {
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('Apakah Anda yakin ingin menghapus data pegawai ini?')) {
-      await deleteDoc(doc(db, 'employees', id));
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', id);
+      if (error) alert('Gagal menghapus: ' + error.message);
     }
   };
 
